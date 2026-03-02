@@ -7,8 +7,7 @@
   - [Create a non-root user](#create-a-non-root-user)
   - [Configure `ufw` firewall](#configure-ufw-firewall)
   - [Configure `fail2ban`](#configure-fail2ban)
-  - [Disable root `SSH` login](#disable-root-ssh-login)
-  - [Disable password authentication](#disable-password-authentication)
+  - [Harden `SSH` config](#harden-ssh-config)
   - [Restart `sshd`](#restart-sshd)
 
 ## What is VM hardening
@@ -49,7 +48,7 @@ Docs:
    usermod -aG sudo <username>
    ```
 
-4. To copy your [`SSH`](./ssh.md#what-is-ssh) key to the new user,
+4. To set up [`SSH`](./ssh.md#what-is-ssh) key authentication for the new user,
 
    [run in the `VS Code Terminal`](./vs-code.md#run-a-command-in-the-vs-code-terminal):
 
@@ -71,11 +70,13 @@ Docs:
 
    Replace [`<your-vm-ip-address>`](./vm.md#your-vm-ip-address).
 
-6. Disconnect from the root session and use the non-root user for all remaining steps.
+6. Confirm the connection did not prompt for a password. If it did, repeat step 4.
+
+7. Disconnect from the root session and use the non-root user for all remaining steps.
 
 ### Configure `ufw` firewall
 
-`ufw` (`Uncomplicated Firewall`) is a simple firewall for [`Linux`](./linux.md#what-is-linux).
+`ufw` (`Uncomplicated Firewall`) is a simple firewall for [`Linux`](./linux.md#what-is-linux). By default, `ufw` denies all incoming traffic. The steps below create exceptions for the ports your VM needs.
 
 1. Find the [`<caddy-port>`](./caddy.md#caddy-port).
 
@@ -116,7 +117,7 @@ Docs:
 
 ### Configure `fail2ban`
 
-`fail2ban` blocks IP addresses that make too many failed login attempts.
+`fail2ban` blocks IP addresses that make too many failed login attempts. Even after password authentication is disabled, `fail2ban` remains useful: it rate-limits repeated `SSH` connection attempts and can be extended to protect other services.
 
 1. To update the package list,
 
@@ -158,7 +159,7 @@ Docs:
    sudo systemctl status fail2ban
    ```
 
-### Disable root `SSH` login
+### Harden `SSH` config
 
 1. To open the [`SSH`](./ssh.md#what-is-ssh) config,
 
@@ -174,28 +175,16 @@ Docs:
    PermitRootLogin no
    ```
 
-3. Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).
-
-> [!IMPORTANT]
-> Make sure you can `SSH` as a non-root user before disabling root login.
-
-### Disable password authentication
-
-1. To open the [`SSH`](./ssh.md#what-is-ssh) config,
-
-   [run in the `VS Code Terminal`](./vs-code.md#run-a-command-in-the-vs-code-terminal):
-
-   ```terminal
-   sudo nano /etc/ssh/sshd_config
-   ```
-
-2. Find the line `PasswordAuthentication` and set it to:
+3. Find the line `PasswordAuthentication` and set it to:
 
    ```text
    PasswordAuthentication no
    ```
 
-3. Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).
+4. Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).
+
+> [!IMPORTANT]
+> Make sure you can `SSH` as a non-root user before disabling root login.
 
 > [!IMPORTANT]
 > Make sure your `SSH` key is set up before disabling password authentication.
