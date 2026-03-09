@@ -77,5 +77,5 @@ Convention files must not mention any specific AI agent by name (e.g., Claude, G
   - Good: `If the path is missing, the agent must stop and ask the user.`
   - Bad: `If the path is missing, Claude must stop and ask the user.`
 - The rule applies to all occurrences — including identifiers, scope names, and directory paths, not just instructional text:
-  - Good: `ai-agent` scope, `.ai-agent/` directory
+  - Good: `agent` scope, `.agents/` directory
   - Bad: `claude` scope, `.claude/` directory
