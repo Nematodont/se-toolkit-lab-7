@@ -56,7 +56,7 @@ class ApiLogsPage(BaseModel):
 
 async def fetch_items() -> list[ApiItem]:
     """Fetch the lab/task catalog from the autochecker API."""
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(
             f"{settings.autochecker_api_url}/api/items",
             auth=(settings.autochecker_email, settings.autochecker_password),
@@ -69,7 +69,9 @@ async def fetch_logs(since: datetime | None = None) -> list[ApiLog]:
     """Fetch check results from the autochecker API with pagination."""
     all_logs: list[ApiLog] = []
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    # The autochecker API is slow (~30s per page). Use a large limit
+    # and a generous timeout to handle full pagination.
+    async with httpx.AsyncClient(timeout=600) as client:
         cursor = since
         while True:
             params: dict[str, str | int] = {"limit": 500}
@@ -223,21 +225,42 @@ async def load_logs(
 # ---------------------------------------------------------------------------
 
 
-async def sync(session: AsyncSession) -> dict[str, int]:
+async def sync(session: AsyncSession) -> dict[str, int | str]:
     """Run the full ETL pipeline."""
-    # Fetch and load items
-    api_items = await fetch_items()
-    await load_items(api_items, session)
+    api_items: list[ApiItem] = []
+    items_error: str | None = None
+    logs_error: str | None = None
+    new_count = 0
+
+    try:
+        # Fetch and load items
+        api_items = await fetch_items()
+        await load_items(api_items, session)
+    except Exception as exc:
+        # Items sync failed — report error but continue with logs if possible
+        items_error = str(exc)
 
     # Determine last sync point
     result = (await session.exec(select(func.max(InteractionLog.created_at)))).first()
     since = result if result else None
 
-    # Fetch and load logs
-    logs = await fetch_logs(since)
-    new_count = await load_logs(logs, api_items, session)
+    if api_items and not items_error:
+        try:
+            # Fetch and load logs
+            logs = await fetch_logs(since)
+            new_count = await load_logs(logs, api_items, session)
+        except Exception as exc:
+            # Logs sync failed — report error
+            logs_error = str(exc)
+    elif items_error:
+        logs_error = "Skipped: items sync failed"
 
     # Total count
     total = (await session.exec(select(func.count(col(InteractionLog.id))))).one()
 
-    return {"new_records": new_count, "total_records": total}
+    result: dict[str, int | str] = {"new_records": new_count, "total_records": total}
+    if items_error:
+        result["items_error"] = items_error
+    if logs_error:
+        result["logs_error"] = logs_error
+    return result
