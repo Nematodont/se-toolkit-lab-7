@@ -1,6 +1,6 @@
 """Command router — dispatches a command string to the appropriate handler."""
 
-from handlers.commands import (
+from handlers.handcomm.commands import (
     handle_health,
     handle_help,
     handle_labs,

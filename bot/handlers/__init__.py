@@ -1,6 +1,6 @@
 """Command handlers — plain functions with no Telegram dependency."""
 
-from handlers.commands import (
+from handlers.handcomm.commands import (
     handle_health,
     handle_help,
     handle_labs,
