@@ -14,7 +14,17 @@ We will build an API client in `services/api_client.py` that queries the LMS bac
 
 ## Task 3: LLM Intent Routing
 
-Instead of regex or keyword matching, we use an LLM with **tool calling** to route natural language questions to the right handler. Each tool (e.g., `get_labs`, `get_scores`, `get_health`) has a descriptive name and description that the LLM reads to decide which to call. The quality of these descriptions is more important than prompt engineering. We will use the `LLM_API_KEY`, `LLM_API_BASE_URL`, and `LLM_API_MODEL` from the environment. The system prompt will instruct the LLM to use tools rather than answer directly. A fallback handles cases where the LLM service is unreachable.
+Instead of regex or keyword matching, we use an LLM with **tool calling** to route natural language questions to the right handler. The architecture follows the **tool-use pattern** from Lab 6: the LLM receives tool schemas (9 backend endpoints as function schemas), a system prompt, and the user's message. It responds with tool calls, the bot executes them via `APIClient`, feeds results back as `role: tool` messages, and the LLM produces a final answer.
+
+Key components:
+- `services/llm_client.py` — LLM client with a `route()` method that runs the tool-calling loop (max 5 rounds). Debug output goes to stderr via `print(..., file=sys.stderr)`.
+- `services/tool_schemas.py` — all 9 tool definitions with descriptive names and parameter schemas. Quality of descriptions directly affects routing accuracy.
+- `handlers/intent_router.py` — dispatches plain text to the LLM. Handles greetings and gibberish with fallback responses without calling the LLM.
+- `handlers/keyboard.py` — inline keyboard button definitions for common queries (used in Telegram mode, displayed as hints in --test mode).
+
+The system prompt instructs the LLM to always use tools rather than guess. For multi-step queries (e.g., "which lab has the lowest pass rate?"), the LLM calls `get_items` first, then `get_pass_rates` for each lab, then compares. The tool result feedback loop is critical — each round appends tool results to the conversation and calls the LLM again.
+
+Error handling: if the LLM service is unreachable, the router returns a friendly message suggesting slash commands as a fallback.
 
 ## Task 4: Deployment
 
