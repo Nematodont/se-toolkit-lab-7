@@ -95,3 +95,66 @@ By the end of this lab, you should be able to say:
 ### Optional
 
 1. [Flutter Web Chatbot](./lab/tasks/optional/task-1.md)
+
+## Deploy
+
+The bot runs as a Docker container alongside the backend, managed by `docker compose`.
+
+### Required environment variables
+
+All secrets live in `.env.docker.secret` (gitignored). The bot needs these:
+
+| Variable | Description | Example |
+|---|---|---|
+| `BOT_TOKEN` | Telegram bot token from @BotFather | `123456:ABC-DEF...` |
+| `LMS_API_KEY` | Backend API key | `my-secret-api-key` |
+| `LLM_API_KEY` | LLM API key | `my-secret-qwen-key` |
+| `LLM_API_BASE_URL` | LLM endpoint (use `host.docker.internal` for services on the host) | `http://host.docker.internal:42005/v1` |
+| `LLM_API_MODEL` | LLM model name | `coder-model` |
+
+> **Important:** `LMS_API_BASE_URL` is hardcoded to `http://backend:8000` in `docker-compose.yml`. Inside Docker, `localhost` refers to the container itself — the bot must use the Docker service name to reach the backend.
+
+### Start everything
+
+```bash
+cd ~/se-toolkit-lab-7
+
+# Stop any background bot process
+pkill -f "bot.py" 2>/dev/null
+
+# Build and start all services
+docker compose --env-file .env.docker.secret up --build -d
+
+# Check all services are running
+docker compose --env-file .env.docker.secret ps
+```
+
+You should see `bot`, `backend`, `postgres`, and `caddy` all with status `Up`.
+
+### Verify
+
+```bash
+# Check bot container specifically
+docker compose --env-file .env.docker.secret ps bot
+
+# View bot logs (look for "Application started", no tracebacks)
+docker compose --env-file .env.docker.secret logs bot --tail 20
+
+# Verify backend is healthy
+curl -sf http://localhost:42002/docs
+```
+
+Then test in Telegram:
+1. `/start` — welcome message
+2. `/health` — backend status
+3. "what labs are available?" — natural language query
+4. "which lab has the lowest pass rate?" — multi-step reasoning
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Bot container keeps restarting | `docker compose logs bot` — check for missing env vars or import errors |
+| `/health` fails | Ensure `LMS_API_BASE_URL` is `http://backend:8000` in `docker-compose.yml`, not `localhost` |
+| LLM queries fail | `LLM_API_BASE_URL` must use `host.docker.internal`, not `localhost` |
+| "BOT_TOKEN is required" | Bot env vars must be in `.env.docker.secret`, not just `.env.bot.secret` |
