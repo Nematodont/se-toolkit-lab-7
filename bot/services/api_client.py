@@ -39,3 +39,22 @@ class APIClient:
             return f"request failed: {e}. Check the API configuration."
         except Exception as e:
             return f"unexpected error: {e}"
+
+    def post(self, path: str) -> dict | list | str:
+        """Make a POST request. Returns parsed JSON or an error string."""
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(
+                    self._build_url(path),
+                    headers=self.headers,
+                )
+                response.raise_for_status()
+                return response.json()
+        except httpx.ConnectError as e:
+            return f"connection refused ({self.base_url}). Check that the services are running."
+        except httpx.HTTPStatusError as e:
+            return f"HTTP {e.response.status_code} {e.response.reason_phrase}. The backend service may be down."
+        except httpx.RequestError as e:
+            return f"request failed: {e}. Check the API configuration."
+        except Exception as e:
+            return f"unexpected error: {e}"

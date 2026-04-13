@@ -5,11 +5,15 @@ No Telegram dependency — callable from --test mode, unit tests, or the bot.
 """
 
 from services.api_client import APIClient
+from handlers.keyboard import START_BUTTONS, format_buttons_html
 
 
 def handle_start() -> str:
     """Handle the /start command."""
-    return "Welcome to the LMS bot! Use /help to see available commands."
+    return (
+        "Welcome to the LMS bot! Use /help to see available commands.\n\n"
+        + format_buttons_html(START_BUTTONS)
+    )
 
 
 def handle_help() -> str:
@@ -72,4 +76,13 @@ def handle_scores(args: str) -> str:
 
 def handle_unknown(command: str) -> str:
     """Handle unrecognized input."""
-    return f"Unknown command: {command}. Use /help for available commands."
+    if command.startswith("/"):
+        return f"Unknown command: {command}. Use /help for available commands."
+    # Plain text that didn't go through LLM router (fallback)
+    return (
+        f"I didn't understand: {command}\n\n"
+        "Try asking questions like:\n"
+        "• What labs are available?\n"
+        "• Show me scores for lab 1\n"
+        "• Which lab has the lowest pass rate?"
+    )

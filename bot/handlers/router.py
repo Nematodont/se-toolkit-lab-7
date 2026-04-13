@@ -8,6 +8,7 @@ from handlers.handcomm.commands import (
     handle_start,
     handle_unknown,
 )
+from handlers.intent_router import route_intent
 
 
 def route_command(text: str) -> str:
@@ -32,5 +33,5 @@ def route_command(text: str) -> str:
         if handler:
             return handler()
         return handle_unknown(text)
-    # Plain text — not a slash command (Task 3 will handle this with LLM)
-    return handle_unknown(text)
+    # Plain text — use LLM intent router (Task 3)
+    return route_intent(text)
